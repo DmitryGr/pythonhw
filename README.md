@@ -3,4 +3,6 @@
 Для того чтобы он запускался, нужно поставить пакет
 pip install python-chess
 
+Бот @chesspython_bot
+
 Все что нужно для игры описано в description

@@ -1,23 +1,27 @@
 import argparse
 import sys
+import string
 INF = 1e18
 ENGLISH_ALPHABET_SIZE = 26
 
 
 def add_encode_decode(parser):
-    parser.add_argument('--cipher', nargs=1, choices = ["caesar", "vigenere", "vernam"], help="name of cipher")
-    parser.add_argument('--key', nargs=1, help="name of cipher key")
+    parser.add_argument('--cipher', choices=["caesar", "vigenere", "vernam"], help="name of cipher")
+    parser.add_argument('--key', help="name of cipher key")
     parser.add_argument('--input-file', help="name of input file(not necessary)")
     parser.add_argument('--output-file', help="name of output file (not necessary)")
 
+
 def add_train(parser):
-    parser.add_argument('--input-file', help="name of input file")
+    parser.add_argument('--text-file', help="name of input file")
     parser.add_argument('--model-file', nargs=1, help="name of model file for training")
+
 
 def add_hack(parser):
     parser.add_argument('--input-file', help="name of input file")
     parser.add_argument('--output-file', help="name of output file(not necessary)")
-    parser.add_argument('--model-file', nargs=1, help="name of model file")
+    parser.add_argument('--model-file', help="name of model file")
+
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -36,6 +40,7 @@ def parse():
     add_train(train_parser)
     return parser
 
+
 def try_redirect(is_input, is_output, namespace):
     if is_input and namespace.input_file is not None:
         sys.stdin = open(namespace.input_file, 'r')
@@ -45,26 +50,26 @@ def try_redirect(is_input, is_output, namespace):
 def close_file():
     sys.stdout.close()
 
+
 def add_in_transformation(symbol, step, edge):
     num = ord(symbol) + (step % ENGLISH_ALPHABET_SIZE)
     if num > ord(edge):
         num -= ENGLISH_ALPHABET_SIZE
     return chr(num)
 
-def is_between(symbol, left, right):
-    symb_ord, left_ord, right_ord = ord(symbol), ord(left), ord(right)
-    return left_ord <= symb_ord <= right_ord
 
 def transform_caesar(symbol, step):
-    if is_between(symbol, 'A', 'Z'):
+    if symbol in string.ascii_uppercase:
         return add_in_transformation(symbol, step, 'Z')
-    if is_between(symbol, 'a', 'z'):
+    if symbol in string.ascii_lowercase:
         return add_in_transformation(symbol, step, 'z')
     return symbol
+
 
 def read_text():
     text = sys.stdin.read()
     return text[:-1]
+
 
 def encode_full_text_caesar(text, key):
     answer = []
@@ -72,49 +77,61 @@ def encode_full_text_caesar(text, key):
         answer += [transform_caesar(symbol, key)]
     return "".join(answer)
 
+
 def encode_caesar(key):
     print(encode_full_text_caesar(read_text(), key))
 
+
 def get_code(symbol):
-    if is_between(symbol, 'A', 'Z'):
+    if symbol in string.ascii_uppercase:
         return ord(symbol) - ord('A')
-    if is_between(symbol, 'a', 'z'):
+    if symbol in string.ascii_lowercase:
         return ord(symbol) - ord('a')
     raise Exception('wrong key word')
 
+
 def encode_vigener(key):
     text = read_text()
-    copy_key = key
-    while len(copy_key) < len(text):
-        copy_key += key
-    answer = ""
+    answer = []
     for i in range(len(text)):
-        second_code = get_code(copy_key[i])
-        answer += transform_caesar(text[i], second_code)
-    print(answer)
+        second_code = get_code(key[i%len(text)])
+        answer += [transform_caesar(text[i], second_code)]
+    return "".join(answer)
+
+
+def reverse_symbol(symbol):
+    if symbol in string.ascii_lowercase:
+        symbol = chr(ord('A') + ord(symbol) - ord('a'))
+    else:
+        symbol = chr(ord('a') + ord(symbol) - ord('A'))
+    return symbol
+
 
 def vernam(key):
     text = read_text()
-    answer = ""
-    cur=0
+    answer = []
+    cur = 0
     for symbol in text:
         start_symbol = 'a'
-        if not is_between(symbol, 'a', 'z') and not is_between(symbol, 'A', 'Z'):
-            answer += symbol
+        if not (symbol in string.ascii_lowercase) and not (symbol in string.ascii_uppercase):
+            answer += [symbol]
             continue
         if cur == len(key):
             raise Exception("key length is too small")
-        if is_between(symbol, 'A', 'Z'):
+        key_symb = key[cur]
+        if (symbol in string.ascii_uppercase) != (key_symb in string.ascii_uppercase):
+            key_symb = reverse_symbol(key_symb)
             start_symbol = 'A'
-        code = ord(symbol) + ord(key[cur]) - 2 * ord(start_symbol)
+        code = ord(symbol) + ord(key_symb) - 2 * ord(start_symbol)
         code %= ENGLISH_ALPHABET_SIZE
-        answer += chr(ord(start_symbol) + code)
-    print(answer)
+        answer += [chr(ord(start_symbol) + code)]
+        cur += 1
+    print("".join(answer))
 
 
 def encode(namespace):
     try_redirect(True, True, namespace)
-    key, cipher = namespace.key[0], namespace.cipher[0]
+    key, cipher = namespace.key, namespace.cipher
     if cipher == 'caesar':
         encode_caesar(int(key))
     elif cipher == 'vigenere':
@@ -124,22 +141,24 @@ def encode(namespace):
     else:
         raise Exception('wrong parameter = cipher_name')
 
+
 def reverse_for_decoding(key):
-    new_key = ""
+    new_key = []
     for symbol in key:
         code = get_code(symbol)
-        real_code = (-code)%ENGLISH_ALPHABET_SIZE
-        if is_between(symbol, 'a', 'z'):
-            new_key += chr(ord('a') + real_code)
-        elif is_between(symbol, 'A', 'Z'):
-            new_key += chr(ord('A') + real_code)
+        real_code = (-code) % ENGLISH_ALPHABET_SIZE
+        if symbol in string.ascii_lowercase:
+            new_key += [chr(ord('a') + real_code)]
+        elif symbol in string.ascii_uppercase:
+            new_key += [chr(ord('A') + real_code)]
         else:
             raise Exception('wrong key')
-    return new_key
+    return "".join(new_key)
+
 
 def decode(namespace):
     try_redirect(True, True, namespace)
-    key, cipher = namespace.key[0], namespace.cipher[0]
+    key, cipher = namespace.key, namespace.cipher
     if cipher == 'caesar':
         encode_caesar(-int(key))
     elif cipher == 'vigenere':
@@ -149,8 +168,10 @@ def decode(namespace):
     else:
         raise Exception('wrong parameter = cipher_name')
 
+
 def is_letter(symbol):
-    return is_between(symbol, 'a', 'z') or is_between(symbol, 'A', 'Z')
+    return (symbol in string.ascii_lowercase) or (symbol in string.ascii_uppercase)
+
 
 def analyse(text, hystogramm):
     for symbol in text:
@@ -159,21 +180,23 @@ def analyse(text, hystogramm):
         if symbol not in hystogramm:
             hystogramm[symbol] = 0
         hystogramm[symbol] += 1
-    sum = 0
+    res = 0
     for element in hystogramm:
-        sum += hystogramm[element]
+        res += hystogramm[element]
     for element in hystogramm:
-        hystogramm[element] /= sum
+        hystogramm[element] /= res
+
 
 def train(namespace):
     try_redirect(True, False, namespace)
-    sys.stdout = open(namespace.model_file[0], 'w')
+    sys.stdout = open(namespace.model_file, 'w')
     hystogramm = dict()
     text = read_text()
     analyse(text, hystogramm)
     for element in hystogramm:
         print(element, hystogramm[element])
     print("0")
+
 
 def get_diff(hyst1, hyst2):
     res = 0
@@ -191,8 +214,9 @@ def get_diff(hyst1, hyst2):
         res += diff**2
     return res
 
+
 def nxt(symbol):
-    if is_between(symbol, 'a', 'z'):
+    if symbol in string.ascii_lowercase:
         if symbol == 'z':
             return 'a'
         return chr(ord(symbol)+1)
@@ -200,15 +224,17 @@ def nxt(symbol):
         return 'A'
     return chr(ord(symbol) + 1)
 
+
 def shift(dictionary):
     new_dictionary = dict()
     for element in dictionary:
         new_dictionary[nxt(element)] = dictionary[element]
     return new_dictionary
 
+
 def hack(namespace):
     try_redirect(True, True, namespace)
-    model = open(namespace.model_file[0], 'r')
+    model = open(namespace.model_file, 'r')
     hystogramm = dict()
     while True:
         symbol = model.readline()[:-1]
@@ -231,16 +257,18 @@ def hack(namespace):
     print(encode_full_text_caesar(text, need_code))
 
 
-
-
 def run(parser):
     namespace = parser.parse_args()
     namespace.func(namespace)
     close_file()
 
+
 def solve():
     parser = parse()
     run(parser)
 
+
 if __name__ == "__main__":
     solve()
+
+

@@ -47,6 +47,7 @@ def try_redirect(is_input, is_output, namespace):
     if is_output and namespace.output_file is not None:
         sys.stdout = open(namespace.output_file, 'w')
 
+
 def close_file():
     sys.stdout.close()
 
@@ -74,7 +75,7 @@ def read_text():
 def encode_full_text_caesar(text, key):
     answer = []
     for symbol in text:
-        answer += [transform_caesar(symbol, key)]
+        answer.append(transform_caesar(symbol, key))
     return "".join(answer)
 
 
@@ -93,9 +94,9 @@ def get_code(symbol):
 def encode_vigener(key):
     text = read_text()
     answer = []
-    for i in range(len(text)):
-        second_code = get_code(key[i%len(key)])
-        answer += [transform_caesar(text[i], second_code)]
+    for index, symbol in enumerate(text):
+        second_code = get_code(key[index % len(key)])
+        answer.append(transform_caesar(symbol, second_code))
     print("".join(answer))
 
 
@@ -114,7 +115,7 @@ def vernam(key):
     for symbol in text:
         start_symbol = 'a'
         if not (symbol in string.ascii_lowercase) and not (symbol in string.ascii_uppercase):
-            answer += [symbol]
+            answer.append(symbol)
             continue
         if cur == len(key):
             raise Exception("key length is too small")
@@ -124,7 +125,7 @@ def vernam(key):
             start_symbol = 'A'
         code = ord(symbol) + ord(key_symb) - 2 * ord(start_symbol)
         code %= ENGLISH_ALPHABET_SIZE
-        answer += [chr(ord(start_symbol) + code)]
+        answer.append(chr(ord(start_symbol) + code))
         cur += 1
     print("".join(answer))
 
@@ -148,9 +149,9 @@ def reverse_for_decoding(key):
         code = get_code(symbol)
         real_code = (-code) % ENGLISH_ALPHABET_SIZE
         if symbol in string.ascii_lowercase:
-            new_key += [chr(ord('a') + real_code)]
+            new_key.append(chr(ord('a') + real_code))
         elif symbol in string.ascii_uppercase:
-            new_key += [chr(ord('A') + real_code)]
+            new_key.append(chr(ord('A') + real_code))
         else:
             raise Exception('wrong key')
     return "".join(new_key)
@@ -270,6 +271,3 @@ def solve():
 
 if __name__ == "__main__":
     solve()
-
-
-

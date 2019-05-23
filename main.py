@@ -14,7 +14,7 @@ def add_encode_decode(parser):
 
 def add_train(parser):
     parser.add_argument('--text-file', help="name of input file")
-    parser.add_argument('--model-file', nargs=1, help="name of model file for training")
+    parser.add_argument('--model-file', help="name of model file for training")
 
 
 def add_hack(parser):
@@ -94,9 +94,9 @@ def encode_vigener(key):
     text = read_text()
     answer = []
     for i in range(len(text)):
-        second_code = get_code(key[i%len(text)])
+        second_code = get_code(key[i%len(key)])
         answer += [transform_caesar(text[i], second_code)]
-    return "".join(answer)
+    print("".join(answer))
 
 
 def reverse_symbol(symbol):
@@ -188,7 +188,7 @@ def analyse(text, hystogramm):
 
 
 def train(namespace):
-    try_redirect(True, False, namespace)
+    sys.stdin = open(namespace.text_file, 'r')
     sys.stdout = open(namespace.model_file, 'w')
     hystogramm = dict()
     text = read_text()
@@ -270,5 +270,6 @@ def solve():
 
 if __name__ == "__main__":
     solve()
+
 
 

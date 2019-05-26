@@ -1,9 +1,13 @@
 import requests
 import chess
+import os
+import sys
 from time import sleep
-class BotHandler():
-    def __init__(self):
-        self.url = "https://api.telegram.org/bot876799383:AAEb3lfEJezY5utjCGSWHMudMk7gAExnTFk/"
+
+
+class BotHandler:
+    def __init__(self, token):
+        self.url = "https://api.telegram.org/bot" + token + "/"
         self.general_offset = None
 
     def get_updates(self):
@@ -25,25 +29,26 @@ class BotHandler():
         resp = requests.post(self.url + method, params)
         return resp
 
-a = BotHandler()
 
-def mistake(chat_id):
-    a.send_message(chat_id, "Wrong command. You`re directed to the start")
+def mistake(handler, chat_id):
+    handler.send_message(chat_id, "Wrong command. You`re directed to the start")
 
-def check_result(board, colour):
+
+def check_result(handler, chat, board, colour):
     result = board.result()
     if result == '*':
         return False
     if_won = ((result == '1-0') ^ (colour == 'Black'))
     if result == '1/2-1/2':
-        a.send_message("Draw")
+        handler.send_message(chat, "Draw")
     elif if_won:
-        a.send_message("You won")
+        handler.send_message(chat, "You won")
     else:
-        a.send_message("You lose")
+        handler.send_message(chat, "You lose")
     return True
 
-def make_move(chat, board):
+
+def make_move(handler, chat, board):
     fen = board.fen()
     fen = fen.replace('/', '%2F')
     fen = fen.replace(' ', '+')
@@ -52,50 +57,53 @@ def make_move(chat, board):
     mv = r.json()['turn']['bestMove']
     machine_move = chess.Move.from_uci(mv)
     view = board.san(machine_move)
-    a.send_message(chat, view)
+    handler.send_message(chat, view)
     board.push(machine_move)
 
-def suggestion(chat_id):
-    a.send_message(chat_id, "Make a move!")
 
-def check_move(started_games, colours, games, action):
+def suggestion(handler, chat_id):
+    handler.send_message(chat_id, "Make a move!")
+
+
+def check_move(handler, started_games, colours, games, action):
     move = action['message']['text']
     chat = action['message']['chat']['id']
     if move == '/resign':
-        a.send_message(chat, "Thank you for the game!")
+        handler.send_message(chat, "Thank you for the game!")
         games.pop(chat)
         started_games.remove(chat)
         return
     board = games[chat]
     try:
         machine_move = board.parse_san(move)
-    except:
-        a.send_message(chat, "Wrong move")
+    except Exception:
+        handler.send_message(chat, "Wrong move")
         return
     board.push(machine_move)
     colour = colours[chat]
-    if check_result(board, colour):
+    if check_result(handler, chat, board, colour):
         games.pop(chat)
         started_games.remove(chat)
         return
-    make_move(chat, board)
-    if check_result(board, colour):
+    make_move(handler, chat, board)
+    if check_result(handler, chat, board, colour):
         games.pop(chat)
         started_games.remove(chat)
         return
-    suggestion(chat)
+    suggestion(handler, chat)
 
-def start_game(started_games, action):
+
+def start_game(handler, started_games, action):
     text = action['message']['text']
     chat = action['message']['chat']['id']
     if text != "/start_game":
-        mistake(chat)
+        mistake(handler, chat)
         return
     started_games.add(chat)
-    a.send_message(chat, "Choose a colour. Send message White or Black")
+    handler.send_message(chat, "Choose a colour. Send message White or Black")
 
 
-def check_colour(games, started_games, colours, action):
+def check_colour(handler, games, started_games, colours, action):
     text = action['message']['text']
     chat = action['message']['chat']['id']
     if text == 'White':
@@ -105,42 +113,51 @@ def check_colour(games, started_games, colours, action):
     elif text == 'Black':
         games[chat] = chess.Board()
         colours[chat] = 'Black'
-        make_move(chat, games[chat])
+        make_move(handler, chat, games[chat])
     else:
         started_games.remove(chat)
-        mistake(chat)
+        mistake(handler, chat)
         return
-    suggestion(chat)
+    suggestion(handler, chat)
 
-def delete_exceed(actions):
+
+def delete_exceed(handler, actions):
     real_actions = []
-    was = set()
+    was_chats = set()
     for element in actions:
         if 'text' not in element['message']:
             continue
-        ch = element['message']['chat']['id']
-        if ch in was:
+        chat = element['message']['chat']['id']
+        if element['message']['text'] == '/help':
+            handler.send_message(chat, "Commands are:\nstart_game - to start a game\nresign - to resign")
+            continue
+        if chat in was_chats:
             continue
         real_actions += [element]
-        was.add(ch)
+        was_chats.add(chat)
     return real_actions
 
+
 def main():
-    dt = dict()
+    var = sys.argv[1]
+    handler = BotHandler(var)
+    used_chats = dict()
     started_games = set()
     colours=dict()
     while True:
         sleep(2)
-        actions = a.get_updates()
-        actions = delete_exceed(actions)
+        actions = handler.get_updates()
+        actions = delete_exceed(handler, actions)
         for action in actions:
-            ch = action['message']['chat']['id']
-            if ch not in dt:
-                if ch not in started_games:
-                    start_game(started_games, action)
+            chat = action['message']['chat']['id']
+            if chat not in used_chats:
+                if chat not in started_games:
+                    start_game(handler, started_games, action)
                 else:
-                    check_colour(dt, started_games, colours, action)
+                    check_colour(handler, used_chats, started_games, colours, action)
             else:
-                check_move(started_games, colours, dt, action)
+                check_move(handler, started_games, colours, used_chats, action)
 
-main()
+
+if __name__ == "__main__":
+    main()

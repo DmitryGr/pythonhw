@@ -1,9 +1,7 @@
+Now bot can play chess with a user (it is impossible to add it to a chat)
 
+To use it you must install pip install python-chess
 
-Сейчас бот умеет играть в шахматы (нельзя добавить в чат, может играть только в диалоге с пользователем)
+Name is @chesspython_bot (might be unable to be used right now)
 
-Для того чтобы он запускался, нужно поставить пакет pip install python-chess
-
-Бот @chesspython_bot
-
-Все что нужно для игры описано в description
+Everything needed for playing is written in the "description" section
